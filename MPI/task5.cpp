@@ -10,6 +10,7 @@
 #include <stdlib.h>
 #include "mpi.h"
 #include <iostream>
+#include <string>
 
 int main(int* argc, char** argv)
 {
@@ -19,32 +20,44 @@ int main(int* argc, char** argv)
 	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 	MPI_Comm_size(MPI_COMM_WORLD, &size);
 
-	if (rank == 1) {
+	int range = 12 / size;
+	if (rank == 0) {
 
 		int a[12];
 		for (int i = 0; i < 12; i++) {
-			a[i] = rand();
+			a[i] = i;
 		}
 
-		for (int j = 0; j < size; j++) {
-			if (j != 1) {
-				MPI_Send(&a[0], 12, MPI_INT, j, 0, MPI_COMM_WORLD);
+		for (int j = 1; j < size; j++) {
+
+			if (range * (j + 1) + 1 >= 12) {
+				MPI_Send(&a[range * j + 1], 12 - (range * j + 1), MPI_INT, j, 0, MPI_COMM_WORLD);
+			}
+			else {
+				MPI_Send(&a[range * j + 1], range, MPI_INT, j, 0, MPI_COMM_WORLD);
 			}
 		}
+
+		std::string str;
+		for (int i = 0; i < range + 1; i++) {
+			str += std::to_string(a[i]) + " ";
+		}
+		std::cout << "Process: " << rank << " Message: " << str;
 	}
 	else {
 		int count;
 
-		MPI_Probe(1, 0, MPI_COMM_WORLD, &status);
+		MPI_Probe(0, 0, MPI_COMM_WORLD, &status);
 		MPI_Get_count(&status, MPI_INT, &count);
 
 		int *buf = new int[count];
-		MPI_Recv(buf, count, MPI_INT, 1, 0, MPI_COMM_WORLD, &status);
+		MPI_Recv(buf, count, MPI_INT, 0, 0, MPI_COMM_WORLD, &status);
 
-		printf("Process %d\n", rank);
+		std::string str;
 		for (int i = 0; i < count; i++) {
-			std::cout << buf[i] << " ";
+			str += std::to_string(buf[i]) + " ";
 		}
+		std::cout << "Process: " << rank << " Message: " << str;
 	}
 	MPI_Finalize();
 }
